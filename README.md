@@ -2,7 +2,7 @@
 
 Personal portfolio website built with vanilla HTML, CSS, and JavaScript.
 
-**Live:** [sanu-portfolio.vercel.app](https://sanu-portfolio.vercel.app) *(update this link after Vercel deploy)*
+**Live:** [sanu-portfolio.vercel.app](https://sanu-portfolio.vercel.app/) 
 
 ---
 
@@ -53,16 +53,6 @@ No build step needed. Just open `index.html` in a browser or use VS Code Live Se
 # With Live Server CLI
 npx live-server .
 ```
-
----
-
-## Deploying to Vercel
-
-1. Push this repo to GitHub
-2. Go to [vercel.com](https://vercel.com) → New Project → Import repo
-3. Framework preset: **Other**
-4. Root directory: `/` (default)
-5. Deploy — done
 
 ---
 
