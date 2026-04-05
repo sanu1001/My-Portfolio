@@ -52,16 +52,19 @@ body {
     overflow: hidden;
 }
 
-/* LOADING — no backdrop-filter intentionally.
-   Browser is busy parsing CSS + fonts on first load;
-   blur compositing on top causes the initial lag spike. */
+/* LOADING — position fixed + high z-index so it sits above main-cont
+   which is also position:fixed and would otherwise bury it */
 .loading-wrap {
+    position: fixed;
+    top: 0;
+    left: 0;
     height: 100vh;
     width: 100%;
     background-color: #0A0A0A;
     display: flex;
     justify-content: center;
     align-items: center;
+    z-index: 9998;
 }
 .loading-wrap div, .loading-wrap img {
     background-color: #0A0A0A;
@@ -143,14 +146,15 @@ body {
     z-index: 1;
 }
 
-/* Fixed blur layer sitting behind the right panel.
-   Because it never scrolls, the GPU composites it once and caches it. */
+/* Fixed blur layer — must sit at body level (not inside main-cont)
+   so it's not clipped by the parent's stacking context.
+   Positioned to exactly match .contents-cont dimensions. */
 .content-blur-bg {
     position: fixed;
     top: 1%;
     right: 1%;
     height: 96.5%;
-    width: calc(77.5% - 2px);
+    width: calc(77.5% - 4px);
     backdrop-filter: blur(18px);
     border-radius: 15px;
     pointer-events: none;

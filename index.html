@@ -16,6 +16,8 @@
         <span><span class="bracket">&lt;</span> sanu <span class="bracket">/&gt;</span></span>
     </div>
     <div class="cursor-circle"></div>
+    <!-- Blur layer for right panel — body-level so it's not clipped by main-cont stacking context -->
+    <div class="content-blur-bg"></div>
     <div class="main">
         <div class="circle circle1"></div>
         <div class="circle circle2"></div>
@@ -62,9 +64,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Fixed blur layer for right panel — never scrolls so GPU caches it -->
-            <div class="content-blur-bg"></div>
 
             <!-- CONTENT -->
             <div class="contents-cont hidden" id="contentContainer">

@@ -142,26 +142,31 @@ document.querySelectorAll('.hidden').forEach((el) => observer.observe(el));
 
 
 // ─── LOADING SCREEN ──────────────────────────────────────────────────────────
-const observer2   = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-        if (entry.isIntersecting) entry.target.classList.add('hide');
-    });
-});
+// Removed observer2 / .toHide mechanism — it was adding .hide immediately
+// since the loading-wrap is always intersecting (covers full viewport),
+// causing a premature 6s fade that started the moment JS ran.
+// Now: wait 1500ms → fade out over 400ms → hide and show circles.
 
 const circles     = document.querySelectorAll('.circle');
 const loadingWrap = document.querySelector('.loading-wrap');
 const bodyEle     = document.body;
 
-document.querySelectorAll('.toHide').forEach((el) => observer2.observe(el));
-
 window.onload = function () {
     circles.forEach(c => { c.style.display = "none"; });
+
     setTimeout(function () {
-        loadingWrap.style.display = "none";
-        circles.forEach(c => {
-            c.style.display  = "block";
-            c.style.position = "fixed";
-        });
-        bodyEle.style.backgroundColor = "#0A0A0A";
-    }, 3000);
+        // Start fade
+        loadingWrap.style.transition = "opacity 0.4s ease";
+        loadingWrap.style.opacity    = "0";
+
+        // After fade completes, hide it and show the site
+        setTimeout(function () {
+            loadingWrap.style.display = "none";
+            circles.forEach(c => {
+                c.style.display  = "block";
+                c.style.position = "fixed";
+            });
+        }, 420);
+
+    }, 1500);
 };
