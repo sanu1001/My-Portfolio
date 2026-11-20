@@ -236,7 +236,8 @@
      On/off: decided once per frame from the real text boxes, the pointer
      and the scroll position, so it can't get stuck or miss an entry. */
   const LENS = { R: 62, mag: 1.12, refract: 0.5, frost: 0.1 };
-  const LOUPE_BOX = Math.round(LENS.R * 2.9);        // room for wobble and the soft shadow
+  const LENS_HOLE = 1.5;                              // the most the hole can grow (x radius) at full stretch and wobble
+  const LOUPE_BOX = Math.round(LENS.R * LENS_HOLE * 2 + 28); // room for the hole and the soft shadow
   const loupeR = new Spring(0, 0.62, 0.32);   // bouncier pop when the lens appears
   const lensTargets = [];
   let lensHit = null, lensShown = null;
@@ -249,7 +250,7 @@ precision highp float;
 uniform sampler2D uTex;   // the heading, premultiplied
 uniform vec2 uRes;        // canvas size, device px
 uniform float uDpr;
-uniform vec4 uLens;       // radius (css px), time, unused, unused
+uniform vec4 uLens;       // radius (css px), time, hole radius (css px), unused
 uniform vec4 uMotion;     // direction (y down), stretch, wobble
 uniform vec4 uMap;        // lens centre in heading space, heading texture size (css px)
 uniform vec3 uParams;     // magnification, refraction, frost
@@ -283,9 +284,15 @@ void main() {
   float aa = 1.2 / uDpr;
   float inside = smoothstep(aa, -aa, d);
 
+  // The page text is masked out in a circle under the lens. Redraw it here,
+  // unbent, everywhere the wobbling blob doesn't cover, so the hole never shows.
+  float M = uLens.z;
+  float plainA = clamp((M + 1.5 - length(v)) / 1.5, 0.0, 1.0);
+  vec4 col = textAt(uMap.xy + v) * plainA;
+
   // soft shadow under the lens
   float shadow = smoothstep(R * 1.35, R * 0.55, length(q - vec2(0.0, R * 0.22))) * 0.16 * (1.0 - inside);
-  vec4 col = vec4(0.0, 0.0, 0.0, shadow);
+  col = col * (1.0 - shadow) + vec4(0.0, 0.0, 0.0, shadow);
 
   if (inside > 0.0) {
     // treat the lens as a glass dome; its 3D normal drives everything
@@ -369,7 +376,7 @@ void main() {
     return Object.assign({
       width: t.src.offsetWidth + 12,
       height: Math.ceil(t.src.offsetHeight + fs * 0.35),             // room for descenders
-      pixelRatio: Math.min(2.5, (devicePixelRatio || 1) * 1.2),      // just above the 1.12x zoom
+      pixelRatio: Math.min(3, (devicePixelRatio || 1) * 1.6),        // sharp enough to sit next to the real text
       fontEmbedCSS: fontCSS,
       style: { opacity: '1', translate: 'none', transform: 'none', margin: '0', maskImage: 'none', webkitMaskImage: 'none' },
     }, extra);
@@ -385,30 +392,52 @@ void main() {
     for (let i = 3; i < d.length; i += 4) if (d[i] > 20) n++;
     return n;
   };
+  // Render one element, keeping the best of up to three passes: html-to-image can
+  // render before its embedded fonts are ready, which leaves lines blank.
+  async function snap(el, o) {
+    let cv = await window.htmlToImage.toCanvas(el, o);
+    let ink = inkOf(cv);
+    for (let i = 0; i < 2; i++) {
+      await sleep(120);
+      const again = await window.htmlToImage.toCanvas(el, o);
+      const ink2 = inkOf(again);
+      if (ink2 <= ink) break;
+      cv = again; ink = ink2;
+    }
+    return { cv, ink };
+  }
   async function captureLens(t) {
     if (!window.htmlToImage || t.busy) return;
     t.busy = true;
     try {
       const o = captureOpts(t);
-      // html-to-image can render a heading before its embedded fonts are ready,
-      // leaving lines blank. Take two passes and keep whichever has more text.
-      let cv = await window.htmlToImage.toCanvas(t.src, o);
-      let ink = inkOf(cv);
-      for (let i = 0; i < 2; i++) {
-        await sleep(120);
-        const again = await window.htmlToImage.toCanvas(t.src, o);
-        const ink2 = inkOf(again);
-        if (ink2 <= ink) break;
-        cv = again; ink = ink2;
+      let cv, ink;
+      if (t.hits.length > 1) {
+        // The multi-line greeting drifts by a sub-pixel per line when captured whole,
+        // so capture line by line and place each exactly where the page draws it.
+        const pr = o.pixelRatio, r0 = t.src.getBoundingClientRect();
+        cv = document.createElement('canvas');
+        cv.width = Math.ceil(o.width * pr); cv.height = Math.ceil(o.height * pr);
+        const ctx = cv.getContext('2d');
+        ink = 0;
+        for (const h of t.hits) {
+          const r = h.getBoundingClientRect();
+          const shot = await snap(h, captureOpts(t, { width: h.offsetWidth + 12, height: Math.ceil(h.offsetHeight * 1.35) }));
+          ctx.drawImage(shot.cv, (r.left - r0.left) * pr, (r.top - r0.top) * pr);
+          ink += shot.ink;
+        }
+      } else {
+        ({ cv, ink } = await snap(t.src, o));
       }
       if (!ink) return;                                                // nothing captured: leave the lens off
       if (!t.tex) t.tex = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, t.tex);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+      gl.generateMipmap(gl.TEXTURE_2D);
       t.tw = o.width; t.th = o.height; t.ready = true;
       if (lensShown) gl.bindTexture(gl.TEXTURE_2D, lensShown.tex);
     } catch (err) {
@@ -524,8 +553,10 @@ void main() {
     const ss = t.src.style;
     ss.setProperty('--mx', (cx - sx).toFixed(1) + 'px');
     ss.setProperty('--my', (cy - sy).toFixed(1) + 'px');
-    ss.setProperty('--lr', (r * (1.01 + stretch + 0.1 * wob)).toFixed(1) + 'px');
-    gl.uniform4f(glU.uLens, r, now / 1000, 0, 0);
+    // the hole hugs the blob: tight at rest (its rim hides the join), wider only while it stretches
+    const hole = r * (1.015 + stretch + 0.11 * wob);
+    ss.setProperty('--lr', hole.toFixed(1) + 'px');
+    gl.uniform4f(glU.uLens, r, now / 1000, hole, 0);
     gl.uniform4f(glU.uMotion, dirX, dirY, stretch, wob);
     gl.uniform4f(glU.uMap, cx - sx, cy - sy, t.tw, t.th);
     gl.clearColor(0, 0, 0, 0);

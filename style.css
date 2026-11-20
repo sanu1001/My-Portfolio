@@ -225,8 +225,8 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .loupe.on { visibility: visible; }
 .mag-src.mag-on {
-  -webkit-mask-image: radial-gradient(circle var(--lr, 0px) at var(--mx, 0) var(--my, 0), transparent 97%, #000 100%);
-  mask-image: radial-gradient(circle var(--lr, 0px) at var(--mx, 0) var(--my, 0), transparent 97%, #000 100%);
+  -webkit-mask-image: radial-gradient(circle var(--lr, 0px) at var(--mx, 0) var(--my, 0), transparent calc(var(--lr, 0px) - 1px), #000 var(--lr, 0px));
+  mask-image: radial-gradient(circle var(--lr, 0px) at var(--mx, 0) var(--my, 0), transparent calc(var(--lr, 0px) - 1px), #000 var(--lr, 0px));
 }
 
 /* ───────────────────────── Pointer light on glass surfaces ──────────
