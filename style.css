@@ -1121,6 +1121,8 @@ ul { margin: 0; padding: 0; list-style: none; }
   display: flex;
   align-items: center;
   gap: 12px;
+  /* left:50% leaves only half the screen for shrink-to-fit width, so size to content explicitly */
+  width: max-content;
   max-width: min(560px, calc(100vw - 32px));
   padding: 11px 12px 11px 20px;
   border-radius: 99px;
@@ -1341,7 +1343,8 @@ kbd {
 
 /* ───────────────────────── Preferences ───────────────────────── */
 @media (max-width: 820px) {
-  .toast { bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(96px + env(safe-area-inset-bottom)); border-radius: 24px; }
+  .toast-text { flex: 1; min-width: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .avatar.wave, .avatar.spin, .ripple { animation: none; }
